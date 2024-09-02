@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  my_web_service:  # Custom name for the web service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: my_web_app
+    ports:
+      - "8000:80"
+    volumes:
+      - ./src:/workspace/src  # Mount host directory to container
+      - ./include:/workspace/include
+      - ./docker-compose.yml:/workspace/docker-compose.yml
+      - ./Dockerfile:/workspace/Dockerfile
+      - ./makefile:/workspace/makefile
+      - ./README.md:/workspace/README.md
+      - ./.env:/workspace/.env
+      - ./.github:/workspace/.github
+      - ~/.ssh:/root/.ssh
+    environment:
+      - NAME=World
+    command: tail -f /dev/null
+  db:
+    image: postgres:13
+    container_name: my_postgres_db
+    environment:
+      POSTGRES_DB: mydatabase
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  db_data:

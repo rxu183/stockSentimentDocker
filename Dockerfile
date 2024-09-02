@@ -37,10 +37,12 @@ RUN $VCPKG_ROOT/vcpkg install nlohmann-json
 
 RUN git clone https://github.com/D7EAD/liboai.git /workspace/lib && \
     cd /workspace/lib/liboai && \
+    rm -rf .git && \ 
     mkdir build && cd build && \
     cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/workspace && \
     make -j$(nproc) && \
     make install
+    
 # Set the working directory
 WORKDIR /workspace
 

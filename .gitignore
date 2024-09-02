@@ -1,3 +1,4 @@
 .env
 bin/app
 bin/main.o
+lib

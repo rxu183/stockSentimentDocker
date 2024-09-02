@@ -26,9 +26,9 @@ services:
     image: postgres:13
     container_name: my_postgres_db
     environment:
-      POSTGRES_DB: post_storage
-      POSTGRES_USER: rxu183
-      POSTGRES_PASSWORD: yourpassword
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - db_data:/var/lib/postgresql/data
     ports:

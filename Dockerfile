@@ -16,6 +16,7 @@ RUN apt-get update && \
     build-essential \
     cmake \
     g++ \
+    gcc \
     libpq-dev \
     libpqxx-dev \
     git \

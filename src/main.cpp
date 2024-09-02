@@ -139,13 +139,13 @@ void parseAndPrintRedditPosts(const string &gptAPI, vector<post>& storage)
         }
         liboai::Conversation convo;
         // Add a system directive as the first user data
-        if (!convo.AddUserData("I would like you to extract the stock symbol from this post/image, along with a numerical score for how positively it refers to the stock. If there are multiple stocks, only operate on the first one. Be very concise. Format responses as 'NKE: -8' or 'TSLA: 3' or 'N/A'."))
-        {
+        if (!convo.AddUserData("I would like you to extract the stock symbol from this post/image, along with a numerical score between -10 and 10 for how positively it refers to the stock. If there are multiple stocks, only operate on the most important. Be very concise. Format responses as 'NKE -8' or 'TSLA 3' or 'N/A -101' if there isn't a relevant stock ticker.")){
             cerr << "Failed to add system directive to conversation." << endl;
             return;
         }
         // Iterate over each post
-        for (const auto &post : storage)
+        stringstream ss;
+        for (auto &post : storage)
         {
             string title = post.post_title;// post["data"]["title"];
             string data = post.post_data;//post["data"]["selftext"];
@@ -171,7 +171,14 @@ void parseAndPrintRedditPosts(const string &gptAPI, vector<post>& storage)
                 else
                 {
                     // Print the response
+                    ss.clear();
+                    ss.str("");
+                    string temp;
                     cout << "Bot: " << convo.GetLastResponse() << endl;
+                    ss.str(convo.GetLastResponse());
+                    ss >> post.stock_ticker;
+                    ss >> temp;
+                    post.rating = stoi(temp);
 
                 }
             }
@@ -192,7 +199,7 @@ void parseAndPrintRedditPosts(const string &gptAPI, vector<post>& storage)
 }
 
 // Function to read secrets from a file
-void readSecrets(string &clientId, string &clientSecret, string &username, string &password, string &gptAPI, string &polygonAPI, string&dbpassword)
+void readSecrets(string &clientId, string &clientSecret, string &username, string &password, string &gptAPI, string &polygonAPI, string &dbpassword, string &dbpassword_new)
 {
     ifstream file("./../.env");
     string line;
@@ -223,6 +230,8 @@ void readSecrets(string &clientId, string &clientSecret, string &username, strin
                 polygonAPI = value;
             else if (key == "DB_PASSWORD")
                 dbpassword = value;
+            else if (key == "NEW_DB_PASSWORD")
+                dbpassword_new = value;
         }
     }
 }
@@ -422,8 +431,8 @@ string fetch_stock_data(const string &ticker)
     return readBuffer;
 }
 
-// Establish a connection to the database 
-bool establish_connection(const string& conn_str, const string& fallback_conn_str) {
+// Establish a connection to the database and create other database 
+bool establish_connection(const string& conn_str, const string& fallback_conn_str, const string& db_password_new) {
     try {
         // Establish a connection to the PostgreSQL database using the primary connection string
         pqxx::connection conn(conn_str);
@@ -452,8 +461,8 @@ bool establish_connection(const string& conn_str, const string& fallback_conn_st
         return true;
 
     } catch (const exception& e) {
+        stringstream cmd_builder;
         cerr << "Primary connection attempt failed: " << e.what() << endl;
-
         try {
             // Establish a connection using the fallback connection string
             connection fallback_conn(fallback_conn_str);
@@ -466,16 +475,34 @@ bool establish_connection(const string& conn_str, const string& fallback_conn_st
             }
 
             // Create a transactional object
-            work txn(fallback_conn);
+           
 
-            // Execute a simple SQL query
-            result res = txn.exec("SELECT version()");
+            // Execute SQL statements to create a new database and a user with privileges
+            try {
+                // Create a new database
+                nontransaction ntxn(fallback_conn);
+                ntxn.exec("CREATE DATABASE post_storage;");
+                ntxn.commit();
+                work txn(fallback_conn);
+                cout << "Database 'post_storage' created successfully." << endl;
 
-            // Print the query results
-            cout << "PostgreSQL version: " << res[0][0].c_str() << endl;
+                // Create a new user (admin) with a login and password
+                
+                cmd_builder << "CREATE ROLE admin_user WITH LOGIN PASSWORD '" << db_password_new << "';";
+                txn.exec(cmd_builder.str());
+                cout << "User 'admin_user' created successfully." << endl;
 
-            // Commit the transaction
-            txn.commit();
+                // Grant all privileges on the 'post_storage' database to the new user
+                txn.exec("GRANT ALL PRIVILEGES ON DATABASE post_storage TO admin_user;");
+                cout << "Granted all privileges on 'post_storage' to 'admin_user'." << endl;
+
+                // Commit the transaction
+                txn.commit();
+                cout << "All changes committed successfully." << endl;
+            } catch (const std::exception &e) {
+                cerr << "Error during SQL execution: " << e.what() << endl;
+                return false;
+            }
 
             // Close the connection
             fallback_conn.disconnect();
@@ -488,6 +515,51 @@ bool establish_connection(const string& conn_str, const string& fallback_conn_st
     }
 }
 
+bool createTables(const string& conn_str){
+    try {
+        // Connect to the PostgreSQL database
+        pqxx::connection C(conn_str);
+        if (C.is_open()) {
+            cout << "Opened database successfully: " << C.dbname() << endl;
+        } else {
+            cout << "Can't open database" << endl;
+            return false;
+        }
+
+        // Create a table with a unique constraint
+        try {
+            pqxx::work W(C);  // Start a transaction
+
+            string sql = "DROP TABLE IF EXISTS posts; "
+                "CREATE TABLE IF NOT EXISTS posts ("
+                "POST_ID SERIAL PRIMARY KEY, "
+                "Stock_Ticker TEXT, "
+                "Rating INT, "
+                "Title TEXT UNIQUE, "
+                "Data TEXT UNIQUE, "
+                "Date TIMESTAMP, "  // Change this to TIMESTAMP
+                "VW_One_Day_Out INT, "
+                "VW_One_Week_Out INT, "
+                "VW_One_Month_Out INT);";
+
+            W.exec(sql);  // Execute the SQL command
+            W.commit();   // Commit the transaction
+            cout << "Table created successfully." << endl;
+        } catch (const exception &e) {
+            cerr << e.what() << endl;
+            return false;
+        }
+
+        // Close the database connection
+        C.disconnect();
+    } catch (const exception &e) {
+        cerr << e.what() << endl;
+        return false;
+    }
+    return true;
+
+
+}
 /**
  * @brief Main function that calls all of the various helper functions above.
  * 
@@ -498,8 +570,8 @@ int main()
     // This is used for storing the various posts before they get transferred to the database
     vector<post> storage;  
     // Various authentication information
-    string clientId, clientSecret, username, password, gptAPI, polygonAPI, dbpassword;
-    readSecrets(clientId, clientSecret, username, password, gptAPI, polygonAPI, dbpassword);
+    string clientId, clientSecret, username, password, gptAPI, polygonAPI, dbpassword, dbpassword_new;
+    readSecrets(clientId, clientSecret, username, password, gptAPI, polygonAPI, dbpassword, dbpassword_new);
 
     // Retrieve access token.
     string accessTokenJson = getRedditAccessToken(clientId, clientSecret, username, password);
@@ -516,15 +588,16 @@ int main()
     // string postsJson = fetchPostsFromSpecificDates(subreddit, accessToken, dates);
     string postsJson = fetchPosts(subreddit, accessToken, LIMIT_POSTS, storage);
     //
+    parseAndPrintRedditPosts(gptAPI, storage);
     for (const auto& elem : storage){
         cout << elem << "\n";
     }
-    // parseAndPrintRedditPosts(gptAPI, storage);
+    
     // ------------------DATA STORAGE --------------------
     stringstream conn_stream;
     conn_stream << "dbname=post_storage "
-                << "user=rxu183 "
-                << "password=" << dbpassword << " "
+                << "user=admin_user "
+                << "password=" << dbpassword_new << " "
                 << "host=my_postgres_db "
                 << "port=5432";
     string conn_str = conn_stream.str();
@@ -535,7 +608,9 @@ int main()
                     << "host=my_postgres_db "
                     << "port=5432";
     string fallback_conn_str = fallback_stream.str();
-    establish_connection(conn_str, fallback_conn_str);
+    establish_connection(conn_str, fallback_conn_str, dbpassword_new);
+    createTables(conn_str);
+    // createTables
     // try {
     //     // Establish a connection to the PostgreSQL database
        

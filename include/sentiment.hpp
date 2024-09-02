@@ -23,8 +23,6 @@
 using json = nlohmann::json;
 using namespace std;
 
-
-
 struct post {
     string post_title;
     string post_data;
@@ -32,8 +30,11 @@ struct post {
     string stock_ticker;
     int rating;
     int postID;
+    int VW_one_day;
+    int VW_one_week;
+    int VW_one_month;
     // Default constructor
-    post() : post_data(""), date(0), stock_ticker(""), rating(0), post_title(""), postID(0) {}
+    post() : post_data(""), date(0), stock_ticker(""), rating(0), post_title(""), postID(0), VW_one_day(0), VW_one_week(0), VW_one_month(0){}
     // Constructor based on JSON string to initialize member variables
     post(const string& jsonStr) {
         try {
@@ -56,6 +57,9 @@ struct post {
         os << "Date: " << inp.date << endl;
         os << "Stock Ticker: " << inp.stock_ticker << endl;
         os << "Rating: " << inp.rating << endl;
+        os << "Volume-Weighted Price One Day Out: " << inp.VW_one_day << endl;
+        os << "Volume-Weighted Price One Week Out: " << inp.VW_one_week << endl;
+        os << "Volume-Weighted Price One Month Out: " << inp.VW_one_month << endl;
         return os; // Return the stream to allow chaining
     }
     // Converts the struct to a formatted JSON string for output or other uses

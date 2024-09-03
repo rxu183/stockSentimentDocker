@@ -3,6 +3,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
 #include <sstream>
 #include <algorithm>
 #include <map>
@@ -19,22 +20,29 @@
 #include <vector>
 #include <ostream>
 #include <sstream>
-
+#include <cmath>
+#include <chrono>
+#include <set>
 using json = nlohmann::json;
 using namespace std;
 
 struct post {
     string post_title;
     string post_data;
-    int date;
+    long long date;
     string stock_ticker;
     int rating;
     int postID;
-    int VW_one_day;
-    int VW_one_week;
-    int VW_one_month;
+    double VW_one_day;
+    double VW_two_days;
+    double VW_one_week;
+    double VW_one_month;
+    // int P_VW_one_day; this is the current price we use as a delta relative to everything else.
+    double P_VW_two_days;
+    double P_VW_one_week;
+    double P_VW_one_month;
     // Default constructor
-    post() : post_data(""), date(0), stock_ticker(""), rating(0), post_title(""), postID(0), VW_one_day(0), VW_one_week(0), VW_one_month(0){}
+    post() : post_title(""), post_data(""), date(0), stock_ticker(""), rating(0),  postID(0), VW_one_day(0), VW_two_days(0), VW_one_week(0), VW_one_month(0), P_VW_two_days(0), P_VW_one_week(0), P_VW_one_month(0){}
     // Constructor based on JSON string to initialize member variables
     post(const string& jsonStr) {
         try {
@@ -43,7 +51,7 @@ struct post {
             post_data = jsonData["post_data"].get<string>();
             date = jsonData["date"];
             stock_ticker = jsonData["stock_ticker"].get<string>();
-            rating = jsonData["rating"].get<int>();
+            rating = jsonData["rating"].get<long long>();
             postID = 0;
         } catch (const json::exception& e) {
             cerr << "Error parsing JSON: " << e.what() << endl;
@@ -57,9 +65,13 @@ struct post {
         os << "Date: " << inp.date << endl;
         os << "Stock Ticker: " << inp.stock_ticker << endl;
         os << "Rating: " << inp.rating << endl;
-        os << "Volume-Weighted Price One Day Out: " << inp.VW_one_day << endl;
+        os << "Volume-Weighted Price One Day After Post: " << inp.VW_one_day << endl;
+        os << "Volume-Weighted Price Two Days After Post: " << inp.VW_two_days << endl;
         os << "Volume-Weighted Price One Week Out: " << inp.VW_one_week << endl;
         os << "Volume-Weighted Price One Month Out: " << inp.VW_one_month << endl;
+        os << "Predicted Volume-Weighted Price Two Days Out: " << inp.P_VW_two_days << endl;
+        os << "Predicted Volume-Weighted Price One Week Out: " << inp.P_VW_one_week << endl;
+        os << "Predicted Volume-Weighted Price One Month Out: " << inp.P_VW_one_month << endl;
         return os; // Return the stream to allow chaining
     }
     // Converts the struct to a formatted JSON string for output or other uses
@@ -92,6 +104,7 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
  * @return std::string Returns a string of tweets based on the query.
  */
 void fetchRedditPosts(const std::string& subreddit, const std::string& accessToken, std::vector<post>& storage);
+
 /**
  * @brief Parses the input jsonString, and then prints it to screen.
  * 
@@ -99,12 +112,8 @@ void fetchRedditPosts(const std::string& subreddit, const std::string& accessTok
  */
 void parseAndPrintRedditPosts(const std::string& gptAPI, std::vector<post>& storage);
 
-/**
- * @brief This denotes the string. 
- * 
- * @param text This is a string denoting the input string.
- * @return int Returns the score of the sentiment.
- */
-int analyzeSentiment(const std::string& text);
 
-void readSecrets(std::string& clientId, std::string& clientSecret, std::string& username, std::string& password);
+/**
+ * @brief Parses the raw secrets in the .env file, updating all of the corresponding inputs with the appropriate values.
+ */
+void readSecrets(string &clientId, string &clientSecret, string &username, string &password, string &gptAPI, string &polygonAPI, string &dbpassword, string &dbpassword_new);

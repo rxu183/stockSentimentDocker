@@ -4,7 +4,8 @@ using json = nlohmann::json;
 using namespace std;
 using namespace pqxx;
 
-// ------------------------------ DEFINES ---------------------------------\
+//------------------------------ DEFINES ---------------------------------
+
 // we should probably read these from the website eventually.
 #define START_DAY 5
 #define START_MONTH 6
@@ -246,18 +247,6 @@ time_t convertToUnixTimestamp(const tm &timeStruct)
 
 // The mapping is as follows:
 // dates -> posts -> API-processed posts -> prices // holy fweak each one of these is an enormous separate step.
-bool isHoliday(const tm& date) {
-    static const unordered_set<string> holidays = {
-        "2023-01-01", // New Year's Day
-        "2023-07-04", // Independence Day
-        "2023-12-25", // Christmas Day
-        // Other holidays here: 
-    };
-    char buffer[11];
-    strftime(buffer, sizeof(buffer), "%Y-%m-%d", &date);
-    return holidays.find(buffer) != holidays.end();
-}
-
 // Function to get the next date from a tm structure
 tm getNextDate(const tm& date) {
     tm nextDate = date;
@@ -270,36 +259,36 @@ string convertToUnixTimestampString(const tm& timeStruct) {
     return to_string(convertToUnixTimestamp(timeStruct));
 }
 
-vector<tm> defineDates(int start_year, int start_month, int start_day, int data_points) {
-    vector<tm> dates;
-    tm start_date = {};
-    start_date.tm_year = start_year - 1900; // Year since 1900
-    start_date.tm_mon = start_month - 1;    // Month since January (0-11)
-    start_date.tm_mday = start_day;         // Day of the month (1-31)
-       for (int i = 0; i < data_points;) {
-        // Calculate wday
-        time_t temp_time = mktime(&start_date);
-        tm* temp_tm = localtime(&temp_time);
-        start_date.tm_wday = temp_tm->tm_wday;
+// vector<tm> defineDates(int start_year, int start_month, int start_day, int data_points) {
+//     vector<tm> dates;
+//     tm start_date = {};
+//     start_date.tm_year = start_year - 1900; // Year since 1900
+//     start_date.tm_mon = start_month - 1;    // Month since January (0-11)
+//     start_date.tm_mday = start_day;         // Day of the month (1-31)
+//        for (int i = 0; i < data_points;) {
+//         // Calculate wday
+//         time_t temp_time = mktime(&start_date);
+//         tm* temp_tm = localtime(&temp_time);
+//         start_date.tm_wday = temp_tm->tm_wday;
 
-        // Skip weekends and holidays
-        if (start_date.tm_wday == 0 || start_date.tm_wday == 6 || isHoliday(start_date)) {
-            start_date = getNextDate(start_date);
-            continue; // Do not increment i
-        } else {
-            dates.push_back(start_date);
-            start_date = getNextDate(start_date);
-            i++; // Only increment i when a valid date is added
-        }
-    }
-    cout << "Retrieving data from the following days: \n";
-    for (const auto& date : dates) {
-        char buffer[32];
-        strftime(buffer, sizeof(buffer), "%Y-%m-%d", &date);
-        cout << buffer << "\n";
-    }
-    return dates;
-}
+//         // Skip weekends and holidays
+//         if (start_date.tm_wday == 0 || start_date.tm_wday == 6 || isHoliday(start_date)) {
+//             start_date = getNextDate(start_date);
+//             continue; // Do not increment i
+//         } else {
+//             dates.push_back(start_date);
+//             start_date = getNextDate(start_date);
+//             i++; // Only increment i when a valid date is added
+//         }
+//     }
+//     cout << "Retrieving data from the following days: \n";
+//     for (const auto& date : dates) {
+//         char buffer[32];
+//         strftime(buffer, sizeof(buffer), "%Y-%m-%d", &date);
+//         cout << buffer << "\n";
+//     }
+//     return dates;
+// }
 
 // This is just fetching raw posts; maybe we'll implement saving training data for later:
 string fetchPosts(const string& subreddit, const string& accessToken, int limit, vector<post>& storage) {
@@ -432,10 +421,10 @@ string fetch_stock_data(const string &ticker)
 }
 
 // Establish a connection to the database and create other database 
-bool establish_connection(const string& conn_str, const string& fallback_conn_str, const string& db_password_new) {
+bool establishConnection(const string& conn_str, const string& fallback_conn_str, const string& db_password_new) {
     try {
         // Establish a connection to the PostgreSQL database using the primary connection string
-        pqxx::connection conn(conn_str);
+        connection conn(conn_str);
 
         if (conn.is_open()) {
             cout << "Connected to database: " << conn.dbname() << endl;
@@ -473,10 +462,6 @@ bool establish_connection(const string& conn_str, const string& fallback_conn_st
                 cerr << "Failed to connect to the database with fallback connection string." << endl;
                 return false;
             }
-
-            // Create a transactional object
-           
-
             // Execute SQL statements to create a new database and a user with privileges
             try {
                 // Create a new database
@@ -485,29 +470,23 @@ bool establish_connection(const string& conn_str, const string& fallback_conn_st
                 ntxn.commit();
                 work txn(fallback_conn);
                 cout << "Database 'post_storage' created successfully." << endl;
-
                 // Create a new user (admin) with a login and password
-                
                 cmd_builder << "CREATE ROLE admin_user WITH LOGIN PASSWORD '" << db_password_new << "';";
                 txn.exec(cmd_builder.str());
                 cout << "User 'admin_user' created successfully." << endl;
-
                 // Grant all privileges on the 'post_storage' database to the new user
                 txn.exec("GRANT ALL PRIVILEGES ON DATABASE post_storage TO admin_user;");
                 cout << "Granted all privileges on 'post_storage' to 'admin_user'." << endl;
-
                 // Commit the transaction
                 txn.commit();
                 cout << "All changes committed successfully." << endl;
-            } catch (const std::exception &e) {
+            } catch (const exception &e) {
                 cerr << "Error during SQL execution: " << e.what() << endl;
                 return false;
             }
-
             // Close the connection
             fallback_conn.disconnect();
             return true;
-
         } catch (const exception& fallback_e) {
             cerr << "Fallback connection attempt failed: " << fallback_e.what() << endl;
             return false;
@@ -518,30 +497,31 @@ bool establish_connection(const string& conn_str, const string& fallback_conn_st
 bool createTables(const string& conn_str){
     try {
         // Connect to the PostgreSQL database
-        pqxx::connection C(conn_str);
+        connection C(conn_str);
         if (C.is_open()) {
             cout << "Opened database successfully: " << C.dbname() << endl;
         } else {
             cout << "Can't open database" << endl;
             return false;
         }
-
         // Create a table with a unique constraint
         try {
-            pqxx::work W(C);  // Start a transaction
-
-            string sql = "DROP TABLE IF EXISTS posts; "
+            work W(C);  // Start a transaction
+            string sql = //"DROP TABLE IF EXISTS posts; "
                 "CREATE TABLE IF NOT EXISTS posts ("
                 "POST_ID SERIAL PRIMARY KEY, "
+                "Title TEXT, "
                 "Stock_Ticker TEXT, "
                 "Rating INT, "
-                "Title TEXT UNIQUE, "
-                "Data TEXT UNIQUE, "
-                "Date TIMESTAMP, "  // Change this to TIMESTAMP
-                "VW_One_Day_Out INT, "
-                "VW_One_Week_Out INT, "
-                "VW_One_Month_Out INT);";
-
+                "Data TEXT, "
+                "Date TIMESTAMP UNIQUE, "
+                "P_VW_Two_Days_Out NUMERIC(10, 2) DEFAULT 0, "
+                "P_VW_One_Week_Out NUMERIC(10, 2) DEFAULT 0, "
+                "P_VW_One_Month_Out NUMERIC(10, 2) DEFAULT 0, "
+                "VW_One_Day_Out NUMERIC(10, 2) DEFAULT 0, "
+                "VW_Two_Days_Out NUMERIC(10, 2) DEFAULT 0, "
+                "VW_One_Week_Out NUMERIC(10, 2) DEFAULT 0, "
+                "VW_One_Month_Out NUMERIC(10, 2) DEFAULT 0);";
             W.exec(sql);  // Execute the SQL command
             W.commit();   // Commit the transaction
             cout << "Table created successfully." << endl;
@@ -549,7 +529,6 @@ bool createTables(const string& conn_str){
             cerr << e.what() << endl;
             return false;
         }
-
         // Close the database connection
         C.disconnect();
     } catch (const exception &e) {
@@ -557,8 +536,289 @@ bool createTables(const string& conn_str){
         return false;
     }
     return true;
+}
+
+bool insertData(const string& conn_str, const vector<post>& storage) {
+    try {
+        // Establish a connection to the database
+        connection conn(conn_str);
+        if (!conn.is_open()) {
+            cerr << "Error: Could not connect to the database" << endl;
+            return false;
+        }
+
+        // Start a transaction block
+        work txn(conn);
+
+        // Prepare an SQL statement for inserting data into the posts table
+        // Use ON CONFLICT (Date) DO NOTHING to ignore duplicates
+        conn.prepare("insert_post", 
+            "INSERT INTO posts (Title, Data, Date, Stock_Ticker, Rating, VW_One_Day_Out, VW_Two_Days_Out, VW_One_Week_Out, VW_One_Month_Out) "
+            "VALUES ($1, $2, to_timestamp($3), $4, $5, $6, $7, $8, $9) "
+            "ON CONFLICT (Date) DO NOTHING");
+
+        // Loop through each post object in the storage vector
+         for (const auto& p : storage) {
+            // Execute the prepared statement with the values from the post struct
+            txn.exec_prepared("insert_post", 
+                p.post_title,        // Title column
+                p.post_data,         // Data column
+                p.date,              // Date column as a timestamp
+                p.stock_ticker,      // Stock_Ticker column
+                p.rating,            // Rating column
+                p.VW_one_day,        // VW_One_Day_Out column
+                p.VW_two_days,       // VW_Two_Days_Out column
+                p.VW_one_week,       // VW_One_Week_Out column
+                p.VW_one_month       // VW_One_Month_Out column
+            );
+        }
+        // Commit the transaction
+        txn.commit();
+        cout << "Data inserted successfully, ignoring duplicates." << endl;
+
+        // Close the connection
+        conn.disconnect();
+
+        return true;
+    } catch (const sql_error& e) {
+        cerr << "SQL error: " << e.what() << endl;
+        return false;
+    } catch (const exception& e) {
+        cerr << "Error: " << e.what() << endl;
+        return false;
+    }
+}
+// Function to retrieve incomplete data from the database and store it in the provided vector of structs
+void retrieveIncompleteData(const string& conn_str, vector<post>& storage) {
+    try {
+        // Establish a connection to the database
+        connection conn(conn_str);
+        if (!conn.is_open()) {
+            cerr << "Error: Could not connect to the database" << endl;
+            return;
+        }
+
+        // Start a non-transactional work object
+        nontransaction txn(conn);
+
+        // SQL query to retrieve entries with any NULL or 0 VW fields, date as seconds since the epoch,
+        // and Stock_Ticker not equal to 'N/A'
+        string query = "SELECT POST_ID, Title, Data, Stock_Ticker, Rating, "
+                       "EXTRACT(EPOCH FROM Date) AS date_seconds, "
+                       "COALESCE(VW_One_Day_Out, 0) AS VW_One_Day_Out, "
+                       "COALESCE(VW_One_Week_Out, 0) AS VW_One_Week_Out, "
+                       "COALESCE(VW_One_Month_Out, 0) AS VW_One_Month_Out, "
+                       "COALESCE(VW_Two_Days_Out, 0) AS VW_Two_Days_Out "  // Added VW_Two_Days_Out column
+                       "FROM posts "
+                       "WHERE (VW_One_Day_Out IS NULL OR VW_One_Day_Out = 0 OR "
+                       "VW_One_Week_Out IS NULL OR VW_One_Week_Out = 0 OR "
+                       "VW_One_Month_Out IS NULL OR VW_One_Month_Out = 0 OR "
+                       "VW_Two_Days_Out IS NULL OR VW_Two_Days_Out = 0) "  // Added condition for VW_Two_Days_Out
+                       "AND Stock_Ticker <> 'N/A'";
+
+        // Execute the query
+        result res = txn.exec(query);
+        // Loop through each row in the result set
+        for (const auto& row : res) {
+            post p;  // Create a new post struct
+            // Fill in the post struct fields with data from the row
+            p.postID = row["post_id"].as<int>();  // Retrieve POST_ID
+            p.post_title = row["title"].c_str();
+            p.post_data = row["data"].c_str();
+            p.stock_ticker = row["stock_ticker"].c_str();
+            p.rating = row["rating"].as<int>();
+            // Retrieve date as seconds since epoch and round to the nearest integer
+            p.date = static_cast<long long>(round(row["date_seconds"].as<double>()));
+            // Retrieve VW values, using 0 if they were NULL in the database
+            p.VW_one_day = row["vw_one_day_out"].as<double>();
+            p.VW_one_week = row["vw_one_week_out"].as<double>();
+            p.VW_one_month = row["vw_one_month_out"].as<double>();
+            p.VW_two_days = row["vw_two_days_out"].as<double>();  
+            // Add the filled post struct to the storage vector
+            storage.push_back(p);
+        }
+        // Close the connection
+        conn.disconnect();
+        cout << "Retrieved " << storage.size() << " incomplete entries from the database." << endl;
+    } catch (const sql_error& e) {
+        cerr << "SQL error: " << e.what() << endl;
+    } catch (const exception& e) {
+        cerr << "Error: " << e.what() << endl;
+    }
+}
+
+set<string> holidays = {"2024-01-01", "2024-12-25"};  // EXPAND HOLIDY DAYTES 
+
+// Function to check if a date is a holiday
+bool isHoliday(const tm& date) {
+    char buffer[11];
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d", &date);
+    return holidays.find(buffer) != holidays.end();
+}
+
+// Modify roundToNextTradingDay to account for holidays
+tm* roundToNextTradingDay(time_t& time) {
+    tm* tm_time = gmtime(&time);
+
+    // Skip weekends and holidays
+    while (tm_time->tm_wday == 0 || tm_time->tm_wday == 6 || isHoliday(*tm_time)) {
+        time += 86400;  // Add one day
+        tm_time = gmtime(&time);
+    }
+    return tm_time;
+}
+
+void searchUpdatePrices(vector<post>& storage, const string& polygonAPI) {
+    CURL* curl;
+    CURLcode res;
+    string readBuffer;
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+
+    if (!curl) {
+        cerr << "Failed to initialize CURL." << endl;
+        return;
+    }
+
+    for (auto& elem : storage) {
+        elem.date -= 10000000;
+        // Properly adjust dates for production (remove fudging)
+        // long long original_date_ms = elem.date * 1000;  // Convert seconds to milliseconds
+
+        // Calculate trading day-adjusted timestamps in milliseconds
+        // long long date_plus_one_day_sec = elem.date + 86400;  // +1 day in seconds
+        // long long date_plus_two_days_sec = elem.date + 2 * 86400;  // +2 days in seconds
+        // long long date_plus_one_week_sec = elem.date + 7 * 86400;  // +1 week in seconds
+        long long date_plus_one_month_sec = elem.date + 35 * 86400;  // Approx. +1 month in seconds
+
+        // Round to the next trading day if necessary
+        // time_t one_day_time = date_plus_one_day_sec;
+        // tm* tm_one_day = roundToNextTradingDay(one_day_time);
+        // date_plus_one_day_sec = mktime(tm_one_day);
+
+        // time_t two_days_time = date_plus_two_days_sec;
+        // tm* tm_two_days = roundToNextTradingDay(two_days_time);
+        // date_plus_two_days_sec = mktime(tm_two_days);
+
+        // time_t one_week_time = date_plus_one_week_sec;
+        // tm* tm_one_week = roundToNextTradingDay(one_week_time);
+        // date_plus_one_week_sec = mktime(tm_one_week);
+
+        // time_t one_month_time = date_plus_one_month_sec;
+        // tm* tm_one_month = roundToNextTradingDay(one_month_time);
+        // date_plus_one_month_sec = mktime(tm_one_month);
+
+        // Convert these to milliseconds for the API request
+        // long long date_plus_one_day_ms = date_plus_one_day_sec * 1000;
+        // long long date_plus_two_days_ms = date_plus_two_days_sec * 1000;
+        // long long date_plus_one_week_ms = date_plus_one_week_sec * 1000;
+        // long long date_plus_one_month_ms = date_plus_one_month_sec * 1000;
+
+        // Build URI for each range using the formatted date
+        stringstream build_uri;
+        time_t original_time = static_cast<time_t>(elem.date);
+        time_t end_time_month = static_cast<time_t>(date_plus_one_month_sec);
+
+        build_uri << "https://api.polygon.io/v2/aggs/ticker/" << elem.stock_ticker << "/range/1/day/"
+                  << put_time(gmtime(&original_time), "%Y-%m-%d") << "/"
+                  << put_time(gmtime(&end_time_month), "%Y-%m-%d")
+                  << "?adjusted=true&sort=asc&apiKey=" << polygonAPI;
+
+        cout << "Built URI in the form of: " << build_uri.str() << "\n";
+        
+        // Set CURL options
+        curl_easy_setopt(curl, CURLOPT_URL, build_uri.str().c_str());
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+
+        // Perform the request
+        res = curl_easy_perform(curl);
+
+        // Check for errors
+        if (res != CURLE_OK) {
+            cerr << "curl_easy_perform() failed: " << curl_easy_strerror(res) << endl;
+            continue;  // Skip to the next post if there was an error
+        }
+
+        // Parse JSON response
+        try {
+            auto jsonResponse = nlohmann::json::parse(readBuffer);
+            cout << "Attempting to parse result from Polygon" << "\n";
+            if (jsonResponse.contains("results")) {
+                cout << "Entering results object from Polygon" << "\n";
+                for (const auto& result : jsonResponse["results"]) {
+                    long long timestamp_ms = result["t"];  // Time in milliseconds
+                    double volume_weighted_price = result["vw"];  // Volume-weighted price
+                    cout << "Retrieved ms: " << timestamp_ms << " and VW_Price: " << volume_weighted_price <<  " from Polygon " << "\n";
+                    // Ensure the correct day is selected by checking exact range conditions
+                    // elem.VW_one_day = 5; // GIGA TEMP PELASE EDIT
+                    if (elem.VW_one_day == 0) {
+                        cout << "Saved ONEDAY: " << volume_weighted_price << " at " << timestamp_ms << "\n";
+                        elem.VW_one_day = volume_weighted_price;  // Update for two days out
+                    } else if (elem.VW_two_days == 0){
+                        cout << "Saved TWODAYS: " << volume_weighted_price << " at " << timestamp_ms << "\n";
+                        elem.VW_two_days = volume_weighted_price;
+                    } else if (timestamp_ms <=(elem.date + 8 * 86400) * 1000) {
+                        cout << "Saved WEEK: " << volume_weighted_price << " at " << timestamp_ms << "\n";
+                        elem.VW_one_week = volume_weighted_price;
+                    } else if (timestamp_ms >=  (elem.date + 30 * 86400) * 1000) { // hardcode the month 
+                        cout << "Saved MONTH: " << volume_weighted_price << " at " << timestamp_ms << "\n";
+                        elem.VW_one_month = volume_weighted_price;
+                    }
+                }
+            }
+            cout << "Supposedly processed element : " << elem << "\n";
+        } catch (nlohmann::json::parse_error& e) {
+            cerr << "JSON parsing error: " << e.what() << endl;
+        }
+
+        // Clear the buffer for the next iteration
+        readBuffer.clear();
+    }
+
+    // Clean up CURL
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+}
 
 
+void mergeEntries(const vector<post>& storage, const string& connectionString) {
+    try {
+        // Establish a connection to the PostgreSQL database
+        pqxx::connection conn(connectionString);
+
+        if (!conn.is_open()) {
+            cerr << "Failed to open database connection." << endl;
+            return;
+        }
+
+        // Prepare statements for insertion and updating
+        // Insert command with corrected column names including VW_Two_Days_Out
+        conn.prepare("update_post", 
+                    "UPDATE posts SET "
+                    "VW_One_Day_Out = $2, "
+                    "VW_Two_Days_Out = $3, "  // Corrected column name
+                    "VW_One_Week_Out = $4, "
+                    "VW_One_Month_Out = $5 "
+                    "WHERE post_id = $1");
+
+        // Start a transaction block
+        pqxx::work txn(conn);
+        for (const auto& elem : storage) {
+            // Execute prepared statements to insert or update the entry
+            txn.exec_prepared("update_post", 
+                              elem.postID, elem.VW_one_day, elem.VW_two_days, elem.VW_one_week, elem.VW_one_month);  // Added elem.VW_two_days
+            cout << "Processed post ID " << elem.postID << " in the database." << endl;
+        }
+
+        // Commit the transaction
+        txn.commit();
+        // Close the connection
+        conn.disconnect();
+        cout << "Database merge operation completed successfully." << endl;
+    } catch (const std::exception& e) {
+        cerr << "Error: " << e.what() << endl;
+    }
 }
 /**
  * @brief Main function that calls all of the various helper functions above.
@@ -572,15 +832,12 @@ int main()
     // Various authentication information
     string clientId, clientSecret, username, password, gptAPI, polygonAPI, dbpassword, dbpassword_new;
     readSecrets(clientId, clientSecret, username, password, gptAPI, polygonAPI, dbpassword, dbpassword_new);
-
     // Retrieve access token.
     string accessTokenJson = getRedditAccessToken(clientId, clientSecret, username, password);
     // cout << "Access Token Response: " << accessTokenJson << endl;
-
     // Parse JSON response to extract the actual access token
     json accessTokenData = json::parse(accessTokenJson);
     string accessToken = accessTokenData["access_token"];
-
     // ------------------DATA RETRIEVAL ------------------
     // start_year, start_month, start_day, number of days from start date onwards to iterate over. 
     string subreddit = "wallstreetbets";
@@ -589,9 +846,7 @@ int main()
     string postsJson = fetchPosts(subreddit, accessToken, LIMIT_POSTS, storage);
     //
     parseAndPrintRedditPosts(gptAPI, storage);
-    for (const auto& elem : storage){
-        cout << elem << "\n";
-    }
+   
     
     // ------------------DATA STORAGE --------------------
     stringstream conn_stream;
@@ -608,38 +863,28 @@ int main()
                     << "host=my_postgres_db "
                     << "port=5432";
     string fallback_conn_str = fallback_stream.str();
-    establish_connection(conn_str, fallback_conn_str, dbpassword_new);
+    establishConnection(conn_str, fallback_conn_str, dbpassword_new);
     createTables(conn_str);
-    // createTables
-    // try {
-    //     // Establish a connection to the PostgreSQL database
-       
-    //     pqxx::connection conn(conn_str);
-
-    //     if (conn.is_open()) {
-    //         cout << "Connected to database: " << conn.dbname() << endl;
-    //     } else {
-    //         cout << "Failed to connect to the database." << endl;
-    //         return 1;
-    //     }
-
-    //     // Create a transactional object
-    //     pqxx::work txn(conn);
-
-    //     // Execute a simple SQL query
-    //     pqxx::result res = txn.exec("SELECT version()");
-        
-    //     // Print the query results
-    //     cout << "PostgreSQL version: " << res[0][0].c_str() << endl;
-
-    //     // Commit the transaction
-    //     txn.commit();
-
-    //     // Close the connection
-    //     conn.disconnect();
-    // } catch (const exception &e) {
-    //     cerr << e.what() << endl;
-    //     return 1;
-    // }
+    insertData(conn_str, storage); 
+    storage.clear();
+    // ------------------DATA UPDATES --------------------
+    retrieveIncompleteData(conn_str, storage); //TODO: THIS SEEMS SUSPICIOUS ALL 3 ? maybe because it excludes N/A entries hmm . maybe this works
+    searchUpdatePrices(storage, polygonAPI);
+    mergeEntries(storage, conn_str);
+    // merge entries that already exist with the new and relevant data
+     for (const auto& elem : storage){
+        cout << elem << "\n";
+    }
+    // ------------------DATA MODELING --------------------
+    // after the updates are written (potentially very buggy) XD, run the python file
+    int result = system("python3 ../src/model.py");
+        // Check the result
+    if (result == 0) {
+        std::cout << "Python script executed successfully." << std::endl;
+    } else {
+        std::cerr << "Python script execution failed with error code: " << result << std::endl;
+    }
+    // ------------------DATA VISUALIZATIONS --------------------
+    // holy goat
     return 0;
 }

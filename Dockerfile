@@ -24,11 +24,31 @@ RUN apt-get update && \
     libcurl4-openssl-dev \
     zip \
     unzip \
+    libhdf5-dev \
+    zlib1g-dev \
     tar \
     curl \
-    ninja-build && \
+    ninja-build \
+    python3 \
+    python3-pip \
+    python3-distutils \
+    python3-setuptools \  
+    gfortran \ 
+    libblas-dev \ 
+    liblapack-dev && \ 
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Install Python libraries with pip
+RUN pip3 install --no-cache-dir \
+    numpy \
+    pandas \
+    pymc \
+    matplotlib \
+    scikit-learn \
+    psycopg2 \
+    python-dotenv \
+    theano-pymc
 
 # Clone vcpkg and bootstrap it
 RUN git clone https://github.com/microsoft/vcpkg.git $VCPKG_ROOT && \
@@ -36,6 +56,7 @@ RUN git clone https://github.com/microsoft/vcpkg.git $VCPKG_ROOT && \
 
 RUN $VCPKG_ROOT/vcpkg install nlohmann-json
 
+# Clone and build liboai
 RUN git clone https://github.com/D7EAD/liboai.git /workspace/lib && \
     cd /workspace/lib/liboai && \
     rm -rf .git && \ 

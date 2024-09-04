@@ -1,5 +1,4 @@
 #include "sentiment.hpp" // contains all headers and relevant function definitions.
-
 using json = nlohmann::json;
 using namespace std;
 using namespace pqxx;

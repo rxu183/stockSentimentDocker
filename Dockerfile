@@ -5,7 +5,7 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Set the environment variables for vcpkg and cmake
-ENV VCPKG_ROOT=/workspaces/vcpkg
+ENV VCPKG_ROOT=/workspace/vcpkg
 ENV VCPKG_FORCE_SYSTEM_BINARIES=1
 ENV CMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
 ENV CMAKE_PREFIX_PATH=$VCPKG_ROOT/installed/arm64-linux

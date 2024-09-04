@@ -2,3 +2,5 @@
 bin/app
 bin/main.o
 lib
+src/.DS_Store
+.vscode/settings.json

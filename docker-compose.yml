@@ -1,13 +1,41 @@
 version: '3.8'
 
 services:
-  my_web_service:  # Custom name for the web service
+  frontend:  # Custom name for the web service
+    build:
+      context: ./frontend
+      dockerfile: ./Dockerfile
+    container_name: frontend
+    ports:
+      - "8000:80"
+    volumes:
+      - ./frontend/.env:/app/.env
+    environment:
+      - NAME=World
+    depends_on:
+      - backend
+
+  backend:  # Custom name for the web service-
+    build:
+      context: ./backend
+      dockerfile: ./Dockerfile
+    container_name: backend
+    ports: 
+      - "5080:5080"
+    volumes:
+      - ./backend/.env:/app/.env
+    environment:
+      - NAME=World
+    depends_on:
+      - db
+
+  update_service:  # Custom name for the web service
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: my_web_app
+    container_name: update_app
     ports:
-      - "8000:80"
+      - "4000:4000"
     volumes:
       - ./src:/workspace/src 
       - ./include:/workspace/include
@@ -22,6 +50,7 @@ services:
     environment:
       - NAME=World
     command: tail -f /dev/null
+
   db:
     image: postgres:13
     container_name: my_postgres_db

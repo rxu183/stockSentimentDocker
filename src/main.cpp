@@ -204,7 +204,6 @@ void readSecrets(string &clientId, string &clientSecret, string &username, strin
 {
     ifstream file("./../.env");
     string line;
-
     if (!file.is_open())
     {
         cerr << "Failed to open secrets.txt" << endl;
@@ -510,11 +509,11 @@ bool createTables(const string& conn_str){
             string sql = //"DROP TABLE IF EXISTS posts; "
                 "CREATE TABLE IF NOT EXISTS posts ("
                 "POST_ID SERIAL PRIMARY KEY, "
-                "Title TEXT, "
+                "Title TEXT UNIQUE, "
                 "Stock_Ticker TEXT, "
                 "Rating INT, "
                 "Data TEXT, "
-                "Date TIMESTAMP UNIQUE, "
+                "Date TIMESTAMP, "
                 "P_VW_Two_Days_Out NUMERIC(10, 2) DEFAULT 0, "
                 "P_VW_One_Week_Out NUMERIC(10, 2) DEFAULT 0, "
                 "P_VW_One_Month_Out NUMERIC(10, 2) DEFAULT 0, "
@@ -555,8 +554,7 @@ bool insertData(const string& conn_str, const vector<post>& storage) {
         conn.prepare("insert_post", 
             "INSERT INTO posts (Title, Data, Date, Stock_Ticker, Rating, VW_One_Day_Out, VW_Two_Days_Out, VW_One_Week_Out, VW_One_Month_Out) "
             "VALUES ($1, $2, to_timestamp($3), $4, $5, $6, $7, $8, $9) "
-            "ON CONFLICT (Date) DO NOTHING");
-
+            "ON CONFLICT (Title) DO NOTHING");
         // Loop through each post object in the storage vector
          for (const auto& p : storage) {
             // Execute the prepared statement with the values from the post struct
@@ -575,13 +573,11 @@ bool insertData(const string& conn_str, const vector<post>& storage) {
         // Commit the transaction
         txn.commit();
         cout << "Data inserted successfully, ignoring duplicates." << endl;
-
         // Close the connection
         conn.disconnect();
-
         return true;
     } catch (const sql_error& e) {
-        cerr << "SQL error: " << e.what() << endl;
+        cerr << "SQL error RIGHT HERE: " << e.what() << endl;
         return false;
     } catch (const exception& e) {
         cerr << "Error: " << e.what() << endl;

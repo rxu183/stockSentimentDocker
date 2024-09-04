@@ -1,6 +1,7 @@
 CXX = g++
 CXXFLAGS = -Wall -Wextra -std=c++20 -Iinclude
-LDFLAGS = -Llib # search this directory 
+LDFLAGS = -Llib -L$(VCPKG_PATH)/installed/x64-linux/lib -laws-cpp-sdk-core -laws-cpp-sdk-secretsmanager
+# search this directory 
 LDLIBS = -lcurl -loai -lpqxx #this is where 
 
 SRCDIR = src
@@ -23,4 +24,6 @@ $(BINDIR)/%.o: $(SRCDIR)/%.cpp
 clean:
 	rm -f $(BINDIR)/*.o $(EXECUTABLE)
 
+run: $(TARGET)
+	./bin/$(TARGET)
 .PHONY: clean

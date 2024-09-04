@@ -56,6 +56,8 @@ RUN git clone https://github.com/microsoft/vcpkg.git $VCPKG_ROOT && \
 
 RUN $VCPKG_ROOT/vcpkg install nlohmann-json
 
+RUN $VCPKG_ROOT/vcpkg install aws-sdk-cpp
+
 # Clone and build liboai
 RUN git clone https://github.com/D7EAD/liboai.git /workspace/lib && \
     cd /workspace/lib/liboai && \

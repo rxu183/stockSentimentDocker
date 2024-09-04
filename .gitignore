@@ -3,3 +3,7 @@ bin/app
 bin/main.o
 src/.DS_Store
 .vscode/settings.json
+vcpkg
+.devcontainer
+.vscode
+bin

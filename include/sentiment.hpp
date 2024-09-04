@@ -24,9 +24,6 @@
 #include <cmath>
 #include <chrono>
 #include <set>
-#include <aws/core/Aws.h>
-#include <aws/secretsmanager/SecretsManagerClient.h>
-#include <aws/secretsmanager/model/GetSecretValueRequest.h>
 using json = nlohmann::json;
 using namespace std;
 

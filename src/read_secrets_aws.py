@@ -38,7 +38,7 @@ def main():
     region_name = 'us-east-1'         # Replace with your AWS region
 
     # Define the path to the .env file
-    env_file_path = os.path.join('.env')
+    env_file_path = os.path.join('..', '.env')
 
      # Check if the .env file already exists
     if os.path.exists(env_file_path):

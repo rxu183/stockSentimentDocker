@@ -40,6 +40,7 @@ services:
       - ./src:/workspace/src 
       - ./include:/workspace/include
       - ./docker-compose.yml:/workspace/docker-compose.yml
+      - ./lib:/workspace/lib
       - ./Dockerfile:/workspace/Dockerfile
       - ./makefile:/workspace/makefile
       - ./README.md:/workspace/README.md

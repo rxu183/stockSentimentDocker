@@ -12,7 +12,6 @@ using namespace pqxx;
 #define LIMIT_POSTS 5 // max number of posts we can run in a given day 
 #define DAYS 1
 
-
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
 {
     // explanation of this v complicated line of code:
@@ -823,6 +822,9 @@ void mergeEntries(const vector<post>& storage, const string& connectionString) {
 int main()
 {
     // This is used for storing the various posts before they get transferred to the database
+    cout << "Attempting to read/create secrets from AWS" << "\n";
+    system("python3 ../src/read_secrets_aws.py");
+    // some kind of pre-check work for non-local running: 
     vector<post> storage;  
     // Various authentication information
     string clientId, clientSecret, username, password, gptAPI, polygonAPI, dbpassword, dbpassword_new;

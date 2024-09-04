@@ -9,10 +9,7 @@ CXXFLAGS = -Wall -Wextra -std=c++20 -Iinclude -I$(VCPKG_PATH)/installed/arm64-li
 LDFLAGS = -L$(VCPKG_PATH)/installed/arm64-linux/lib -L/workspace/lib
 
 # In summary, there are a few things that are important - you need to provide the direction to which the compiled library is located, and ... that's about it .
-LDLIBS = $(VCPKG_PATH)/installed/arm64-linux/lib/libaws-cpp-sdk-core.a \
-         $(VCPKG_PATH)/installed/arm64-linux/lib/libaws-cpp-sdk-secretsmanager.a \
-         $(VCPKG_PATH)/installed/arm64-linux/lib/libcurl.a \
-         -lpqxx -loai -lssl -lcrypto -lz -lpthread -ldl -lcurl
+LDLIBS = -loai -lpqxx -lcurl -lssl -lcrypto -lz -lpthread -ldl
 
 # Directories
 SRCDIR = src

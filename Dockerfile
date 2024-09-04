@@ -35,7 +35,9 @@ RUN apt-get update && \
     python3-setuptools \  
     gfortran \ 
     libblas-dev \ 
-    liblapack-dev && \ 
+    liblapack-dev \
+    iputils-ping \
+    libssl-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -48,27 +50,26 @@ RUN pip3 install --no-cache-dir \
     scikit-learn \
     psycopg2 \
     python-dotenv \
-    theano-pymc
+    theano-pymc \
+    boto3
 
 # Clone vcpkg and bootstrap it
 RUN git clone https://github.com/microsoft/vcpkg.git $VCPKG_ROOT && \
     $VCPKG_ROOT/bootstrap-vcpkg.sh
 
-RUN $VCPKG_ROOT/vcpkg install nlohmann-json
+# Install necessary libraries using vcpkg for arm64-linux
+RUN $VCPKG_ROOT/vcpkg install nlohmann-json:arm64-linux
 
-RUN $VCPKG_ROOT/vcpkg install aws-sdk-cpp
+# RUN $VCPKG_ROOT/vcpkg install aws-sdk-cpp[core,secretsmanager]:arm64-linux
 
-# Clone and build liboai
-RUN git clone https://github.com/D7EAD/liboai.git /workspace/lib && \
-    cd /workspace/lib/liboai && \
-    rm -rf .git && \ 
-    mkdir build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/workspace && \
-    make -j$(nproc) && \
-    make install
-    
+# Clone the repository into a temporary directory and move contents to /workspace
+# RUN git clone https://github.com/rxu183/stockSentimentDocker.git /workspace/temp && \
+#     cp -r /workspace/temp/* /workspace && \
+#     rm -rf /workspace/temp
+
 # Set the working directory
 WORKDIR /workspace
+
 
 # Set the default command to bash, so we can use the terminal
 CMD ["/bin/bash"]

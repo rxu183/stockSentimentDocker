@@ -7,7 +7,7 @@ services:
       dockerfile: ./Dockerfile
     container_name: frontend
     ports:
-      - "80:80"
+      - "8000:80"
     volumes:
       - ./frontend/.env:/app/.env
     environment:

@@ -19,11 +19,14 @@ RUN npm run build
 # Step 7: Use a lightweight Nginx image to serve the built app
 FROM nginx:stable-alpine
 
-# Step 8: Copy the build files from the previous stage to the Nginx web root
+# Step 8: Copy the custom Nginx configuration file
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Step 9: Copy the build files from the previous stage to the Nginx web root
 COPY --from=build /app/build /usr/share/nginx/html
 
-# Step 9: Expose the port that Nginx will use
+# Step 10: Expose the port that Nginx will use
 EXPOSE 80
 
-# Step 10: Start Nginx when the container starts
+# Step 11: Start Nginx when the container starts
 CMD ["nginx", "-g", "daemon off;"]

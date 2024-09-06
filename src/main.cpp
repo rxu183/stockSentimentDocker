@@ -19,7 +19,7 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *use
     // Appending on a string (char * ), with size * nmemb is fixed product.
     //
     ((string *)userp)->append((char *)contents, size * nmemb);
-    return size * nmemb;
+    return size * nmemb;e
 }
 
 // get the reddit access token for my account
@@ -200,7 +200,7 @@ void parseAndPrintRedditPosts(const string &gptAPI, vector<post>& storage)
 // Function to read secrets from a file
 void readSecrets(string &clientId, string &clientSecret, string &username, string &password, string &gptAPI, string &polygonAPI, string &dbpassword, string &dbpassword_new)
 {
-    ifstream file("./../.env");
+    ifstream file("/workspace/.env");
     string line;
     if (!file.is_open())
     {

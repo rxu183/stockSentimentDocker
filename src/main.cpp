@@ -19,7 +19,7 @@ static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *use
     // Appending on a string (char * ), with size * nmemb is fixed product.
     //
     ((string *)userp)->append((char *)contents, size * nmemb);
-    return size * nmemb;e
+    return size * nmemb;
 }
 
 // get the reddit access token for my account

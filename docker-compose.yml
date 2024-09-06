@@ -50,7 +50,9 @@ services:
       - ./.gitignore:/workspace/.gitignore
     environment:
       - NAME=World
-    command: tail -f /dev/null
+    command: /bin/bash -c "cd /workspace && make && /workspace/bin/app"
+    
+    # tail -f /dev/null
 
   db:
     image: postgres:13

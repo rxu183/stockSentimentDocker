@@ -19,7 +19,7 @@ The **Stock Sentiment Analysis Application** is a containerized, end-to-end solu
 
 ## Technology Stack
 
-- **C++**: For database initialization, data fetching, and running Python scripts.
+- **C++**: For database initialization, sentiment and price data fetching, and running Python scripts, among other miscellaneous tasks.
 - **Python & PyMC3**: For data analysis and Bayesian regression modeling.
 - **Express.js**: Backend API for managing requests and interfacing with the data processing services.
 - **React**: Frontend for data visualization and user interaction.

@@ -874,7 +874,7 @@ int main()
     }
     // ------------------DATA MODELING --------------------
     // after the updates are written (potentially very buggy) XD, run the python file
-    int result = system("python3 ../src/model.py");
+    int result = system("python3 /workspace/src/model.py");
         // Check the result
     if (result == 0) {
         std::cout << "Python script executed successfully." << std::endl;

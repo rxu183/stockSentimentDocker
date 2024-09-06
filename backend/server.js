@@ -41,7 +41,7 @@ app.get('/api/data', async (req, res) => {
 app.get('/api/data/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query('SELECT * FROM your_table WHERE id = $1', [id]); // Use parameterized query to prevent SQL injection
+    const result = await pool.query('SELECT * FROM posts WHERE id = $1', [id]); // Use parameterized query to prevent SQL injection
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Data not found' });
     }
@@ -57,7 +57,7 @@ app.post('/api/data', async (req, res) => {
   const { name, value } = req.body; // Replace 'name' and 'value' with your actual column names
   try {
     const result = await pool.query(
-      'INSERT INTO your_table (name, value) VALUES ($1, $2) RETURNING *',
+      'INSERT INTO posts (name, value) VALUES ($1, $2) RETURNING *',
       [name, value]
     ); // Parameterized query to insert data
     res.status(201).json(result.rows[0]); // Send the inserted row as JSON
@@ -73,7 +73,7 @@ app.put('/api/data/:id', async (req, res) => {
   const { name, value } = req.body; // Replace 'name' and 'value' with your actual column names
   try {
     const result = await pool.query(
-      'UPDATE your_table SET name = $1, value = $2 WHERE id = $3 RETURNING *',
+      'UPDATE posts SET name = $1, value = $2 WHERE id = $3 RETURNING *',
       [name, value, id]
     ); // Parameterized query to update data
     if (result.rows.length === 0) {
@@ -90,7 +90,7 @@ app.put('/api/data/:id', async (req, res) => {
 app.delete('/api/data/:id', async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query('DELETE FROM your_table WHERE id = $1 RETURNING *', [id]); // Parameterized query to delete data
+    const result = await pool.query('DELETE FROM posts WHERE id = $1 RETURNING *', [id]); // Parameterized query to delete data
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Data not found' });
     }

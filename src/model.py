@@ -38,12 +38,6 @@ def get_database_connection():
 def load_data_from_db(query):
     """
     Load data from the PostgreSQL database into a pandas DataFrame.
-    
-    Args:
-    - query (str): The SQL query to execute.
-    
-    Returns:
-    - DataFrame: The data loaded into a pandas DataFrame.
     """
     conn = get_database_connection()
     if conn:
@@ -60,25 +54,29 @@ def load_data_from_db(query):
             print("Database connection closed.")
     return None
 
-def update_predictions_in_db(post_id, delta_two_days, delta_one_week, delta_one_month, vw_one_day_out):
+def update_predictions_in_db(post_id, p_vw_two_days_out=None, p_vw_one_week_out=None, p_vw_one_month_out=None):
     """
     Update the predictions in the PostgreSQL database based on POST_ID.
-    The predicted values are computed as the actual VW_One_Day_Out plus the deltas.
     """
     conn = get_database_connection()
     if conn:
         try:
             cur = conn.cursor()
-            # Calculate predicted values by adding deltas to VW_One_Day_Out
-            p_vw_two_days_out = vw_one_day_out + delta_two_days
-            p_vw_one_week_out = vw_one_day_out + delta_one_week
-            p_vw_one_month_out = vw_one_day_out + delta_one_month
-            update_query = """
-            UPDATE posts 
-            SET P_VW_Two_Days_Out = %s, P_VW_One_Week_Out = %s, P_VW_One_Month_Out = %s
-            WHERE POST_ID = %s;
-            """
-            cur.execute(update_query, (p_vw_two_days_out, p_vw_one_week_out, p_vw_one_month_out, post_id))
+            if p_vw_two_days_out is not None:
+                cur.execute(
+                    "UPDATE posts SET P_VW_Two_Days_Out = %s WHERE POST_ID = %s;",
+                    (p_vw_two_days_out, post_id)
+                )
+            if p_vw_one_week_out is not None:
+                cur.execute(
+                    "UPDATE posts SET P_VW_One_Week_Out = %s WHERE POST_ID = %s;",
+                    (p_vw_one_week_out, post_id)
+                )
+            if p_vw_one_month_out is not None:
+                cur.execute(
+                    "UPDATE posts SET P_VW_One_Month_Out = %s WHERE POST_ID = %s;",
+                    (p_vw_one_month_out, post_id)
+                )
             conn.commit()
             print(f"Updated predictions for POST_ID {post_id}.")
         except Exception as e:
@@ -96,63 +94,104 @@ if __name__ == "__main__":
     """
     data = load_data_from_db(query)
     print(data)
+
     if data is not None:
-        # Calculate sentiment lag as differences between VW_Two_Days_Out and VW_One_Day_Out for sentiment_lag1,
-        # VW_One_Week_Out and VW_One_Day_Out for sentiment_lag7, and VW_One_Month_Out and VW_One_Day_Out for sentiment_lag30
-        data['sentiment_lag1'] = data['vw_two_days_out'] - data['vw_one_day_out']
-        data['sentiment_lag7'] = data['vw_one_week_out'] - data['vw_one_day_out']
-        data['sentiment_lag30'] = data['vw_one_month_out'] - data['vw_one_day_out']
+        # Predict VW_Two_Days_Out using VW_One_Day_Out and Rating
+        data_two_days = data.dropna(subset=['vw_one_day_out', 'vw_two_days_out', 'rating'])  # Ensure both exist
+        if not data_two_days.empty:
+            X_two_days = data_two_days[['vw_one_day_out', 'rating']].values
+            y_two_days = data_two_days['vw_two_days_out'].values
 
-        # Dropping missing values due to potential NaNs in the differences
-        data.dropna(inplace=True)
+            # Standardize features
+            X_mean_two_days = X_two_days.mean(axis=0)
+            X_std_two_days = X_two_days.std(axis=0)
+            X_standardized_two_days = (X_two_days - X_mean_two_days) / X_std_two_days
 
-        # Features and target variable
-        X = data[['sentiment_lag1', 'sentiment_lag7', 'sentiment_lag30']].values
-        y = data['rating'].values  # Using Rating as the target; adjust as needed
+            # Bayesian Regression Model for predicting VW_Two_Days_Out
+            with pm.Model() as model_two_days:
+                alpha = pm.Normal('alpha', mu=0, sigma=10)
+                betas = pm.Normal('betas', mu=0, sigma=10, shape=X_standardized_two_days.shape[1])
+                sigma = pm.HalfNormal('sigma', sigma=1)
+                mu = alpha + pm.math.dot(X_standardized_two_days, betas)
+                y_obs = pm.Normal('y_obs', mu=mu, sigma=sigma, observed=y_two_days)
+                trace_two_days = pm.sample(1000, return_inferencedata=True)
+            az.plot_trace(trace_two_days)
+            plt.show()
 
-        # Standardize features
-        X_mean = X.mean(axis=0)
-        X_std = X.std(axis=0)
-        X_standardized = (X - X_mean) / X_std
+        # Predict VW_One_Week_Out using VW_Two_Days_Out and Rating
+        data_week = data.dropna(subset=['vw_two_days_out', 'vw_one_week_out', 'rating'])  # Ensure both exist
+        if not data_week.empty:
+            X_week = data_week[['vw_two_days_out', 'rating']].values
+            y_week = data_week['vw_one_week_out'].values
 
-        # Bayesian Regression Model using PyMC3
-        with pm.Model() as model:
-            # Priors for regression coefficients
-            alpha = pm.Normal('alpha', mu=0, sigma=10)
-            betas = pm.Normal('betas', mu=0, sigma=10, shape=X_standardized.shape[1])
-            sigma = pm.HalfNormal('sigma', sigma=1)
-            
-            # Linear model
-            mu = alpha + pm.math.dot(X_standardized, betas)
-            
-            # Likelihood
-            y_obs = pm.Normal('y_obs', mu=mu, sigma=sigma, observed=y)
-            
-            # Posterior sampling
-            trace = pm.sample(1000, return_inferencedata=True)
-        # Plot the results
-        az.plot_trace(trace)
-        plt.show()
-        # Summary of the posterior
-        print(pm.summary(trace))
+            # Standardize features
+            X_mean_week = X_week.mean(axis=0)
+            X_std_week = X_week.std(axis=0)
+            X_standardized_week = (X_week - X_mean_week) / X_std_week
 
-        # Make predictions for each entry in the data
+            # Bayesian Regression Model for predicting VW_One_Week_Out
+            with pm.Model() as model_week:
+                alpha = pm.Normal('alpha', mu=0, sigma=10)
+                betas = pm.Normal('betas', mu=0, sigma=10, shape=X_standardized_week.shape[1])
+                sigma = pm.HalfNormal('sigma', sigma=1)
+                mu = alpha + pm.math.dot(X_standardized_week, betas)
+                y_obs = pm.Normal('y_obs', mu=mu, sigma=sigma, observed=y_week)
+                trace_week = pm.sample(1000, return_inferencedata=True)
+            az.plot_trace(trace_week)
+            plt.show()
+
+        # Predict VW_One_Month_Out using VW_One_Week_Out, VW_Two_Days_Out, and Rating
+        data_month = data.dropna(subset=['vw_one_week_out', 'vw_two_days_out', 'vw_one_month_out', 'rating'])  # Ensure all exist
+        if not data_month.empty:
+            X_month = data_month[['vw_one_week_out', 'vw_two_days_out', 'rating']].values
+            y_month = data_month['vw_one_month_out'].values
+
+            # Standardize features
+            X_mean_month = X_month.mean(axis=0)
+            X_std_month = X_month.std(axis=0)
+            X_standardized_month = (X_month - X_mean_month) / X_std_month
+
+            # Bayesian Regression Model for predicting VW_One_Month_Out
+            with pm.Model() as model_month:
+                alpha = pm.Normal('alpha', mu=0, sigma=10)
+                betas = pm.Normal('betas', mu=0, sigma=10, shape=X_standardized_month.shape[1])
+                sigma = pm.HalfNormal('sigma', sigma=1)
+                mu = alpha + pm.math.dot(X_standardized_month, betas)
+                y_obs = pm.Normal('y_obs', mu=mu, sigma=sigma, observed=y_month)
+                trace_month = pm.sample(1000, return_inferencedata=True)
+            az.plot_trace(trace_month)
+            plt.show()
+
+        # Update predictions in the database
         for i, row in data.iterrows():
-            # Prepare feature vector for prediction
-            x_standardized = (row[['sentiment_lag1', 'sentiment_lag7', 'sentiment_lag30']].values - X_mean) / X_std
+            # Predict VW_Two_Days_Out
+            if pd.notna(row['vw_one_day_out']) and pd.notna(row['rating']):
+                x_two_days = np.array([row['vw_one_day_out'], row['rating']])
+                x_standardized_two_days = (x_two_days - X_mean_two_days) / X_std_two_days
+                p_vw_two_days_out = trace_two_days.posterior['alpha'].mean().values + np.dot(
+                    trace_two_days.posterior['betas'].mean(dim=("chain", "draw")).values, x_standardized_two_days
+                )
+            else:
+                p_vw_two_days_out = None
 
-            # Predict using the trace (posterior samples)
-            predictions = trace.posterior['alpha'].mean(dim=("chain", "draw")).values + np.dot(
-                trace.posterior['betas'].mean(dim=("chain", "draw")).values, x_standardized
-            )
+            # Predict VW_One_Week_Out if VW_Two_Days_Out exists
+            if pd.notna(row['vw_two_days_out']):
+                x_week = np.array([row['vw_two_days_out'], row['rating']])
+                x_standardized_week = (x_week - X_mean_week) / X_std_week
+                p_vw_one_week_out = trace_week.posterior['alpha'].mean().values + np.dot(
+                    trace_week.posterior['betas'].mean(dim=("chain", "draw")).values, x_standardized_week
+                )
+            else:
+                p_vw_one_week_out = None
 
-            # Calculate mean prediction for each lag variable
-            sentiment_lag1_pred = np.mean(predictions)
-            sentiment_lag7_pred = np.mean(predictions)
-            sentiment_lag30_pred = np.mean(predictions)
-
-            # Update predictions in the database using POST_ID
-            update_predictions_in_db(row['post_id'], sentiment_lag1_pred, sentiment_lag7_pred, sentiment_lag30_pred, row['vw_one_day_out'])
-        print(data)
-else:
-    print("Failed to load data from the database.")
+            # Predict VW_One_Month_Out if VW_One_Week_Out and VW_Two_Days_Out exist
+            if pd.notna(row['vw_one_week_out']) and pd.notna(row['vw_two_days_out']):
+                x_month = np.array([row['vw_one_week_out'], row['vw_two_days_out'], row['rating']])
+                x_standardized_month = (x_month - X_mean_month) / X_std_month
+                p_vw_one_month_out = trace_month.posterior['alpha'].mean().values + np.dot(
+                    trace_month.posterior['betas'].mean(dim=("chain", "draw")).values, x_standardized_month
+                )
+            else:
+                p_vw_one_month_out = None
+            # Update predictions in the database
+            update_predictions_in_db(row['post_id'], p_vw_two_days_out, p_vw_one_week_out, p_vw_one_month_out)
